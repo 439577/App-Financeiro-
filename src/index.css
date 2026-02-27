@@ -1,0 +1,75 @@
+body {
+  margin: 0;
+  font-family: system-ui, Arial, sans-serif;
+  background: linear-gradient(180deg, #020617, #0f172a);
+  color: white;
+}
+
+/* largura ideal para desktop */
+.container {
+  padding: 40px;
+  max-width: 1400px;
+  margin: auto;
+}
+
+h1 {
+  margin-bottom: 5px;
+}
+
+.card {
+  background: rgba(30, 41, 59, 0.9);
+  padding: 20px;
+  border-radius: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.35);
+  backdrop-filter: blur(6px);
+}
+
+/* inputs modernos */
+input, select {
+  padding: 12px;
+  width: 100%;
+  border-radius: 10px;
+  border: none;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+/* botões */
+button {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: none;
+  background: #22c55e;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  transform: scale(1.05);
+}
+
+/* botão secundário */
+button:last-child {
+  background: #ef4444;
+}
+
+p {
+  margin: 6px 0;
+}
+
+/* ===== LAYOUT DESKTOP ===== */
+.layout {
+  display: block;
+}
+
+@media (min-width: 900px) {
+  .layout {
+    display: grid;
+    grid-template-columns: 460px 1fr;
+    gap: 30px;
+    align-items: start;
+  }
+}
