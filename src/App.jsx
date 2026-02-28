@@ -1,21 +1,58 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   ArcElement,
   Tooltip,
-  Legend
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title
 } from "chart.js";
 
 import { supabase } from "./supabaseClient";
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+import {
+  Wallet,
+  ArrowUp,
+  ArrowDown,
+  TrendingUp,
+  Plus,
+  Save,
+  History,
+  Briefcase,
+  ShoppingCart,
+  Film,
+  Fuel,
+  Trash2,
+  Home,
+  Zap,
+  Calendar as CalendarIcon,
+  Smartphone,
+  Wifi,
+  CreditCard
+} from "lucide-react";
+
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+
+const CATEGORIES = {
+  'Salário': { icon: Briefcase },
+  'Investimentos': { icon: TrendingUp },
+  'Aluguel': { icon: Home },
+  'Mercado': { icon: ShoppingCart },
+  'Lazer': { icon: Film },
+  'Transporte': { icon: Fuel },
+  'Luz': { icon: Zap },
+  'Água': { icon: Zap },
+  'Internet Móvel': { icon: Smartphone },
+  'Internet': { icon: Wifi },
+  'Cartão de Crédito': { icon: CreditCard },
+  'Outros': { icon: Wallet }
+};
 
 const formatCurrency = (v) =>
-  new Intl.NumberFormat("pt-BR", {
-    minimumFractionDigits: 2,
-  }).format(v);
+  new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(v);
 
 export default function App() {
   const [transacoes, setTransacoes] = useState([]);
@@ -26,7 +63,7 @@ export default function App() {
     description: "",
     date: new Date().toISOString().split("T")[0],
     type: "entrada",
-    category: "Salário",
+    category: "Salário"
   });
 
   useEffect(() => {
@@ -47,7 +84,7 @@ export default function App() {
     let v = e.target.value.replace(/\D/g, "");
     v = (Number(v) / 100).toLocaleString("pt-BR", {
       style: "currency",
-      currency: "BRL",
+      currency: "BRL"
     });
     setFormData({ ...formData, amount: v });
   };
@@ -65,7 +102,7 @@ export default function App() {
       valor,
       categoria: formData.category,
       descricao: formData.description || "Sem descrição",
-      data: formData.date,
+      data: formData.date
     };
 
     const { error } = await supabase.from("transacoes").insert([nova]);
@@ -112,58 +149,37 @@ export default function App() {
   );
 
   const dadosGrafico = {
-    labels: ["Saídas"],
+    labels: Object.keys(CATEGORIES),
     datasets: [
       {
-        data: [resumo.saidas],
-        backgroundColor: ["#00D26A"],
-        borderWidth: 0,
-      },
-    ],
+        data: Object.keys(CATEGORIES).map((cat) =>
+          listaFiltrada
+            .filter((t) => t.categoria === cat && t.tipo === "saida")
+            .reduce((a, c) => a + Number(c.valor), 0)
+        ),
+        borderWidth: 0
+      }
+    ]
   };
 
   return (
-    <div className="min-h-screen bg-[#0D0D0D] text-white p-4 md:p-8">
-      
-      {/* HEADER */}
-      <h1 className="text-3xl md:text-4xl font-bold mb-6">
-        💰 Finanças Pro
-      </h1>
+    <div className="min-h-screen bg-[#0D0D0D] text-white p-6">
+      <h1 className="text-3xl font-bold mb-6">Finanças Pro</h1>
 
       {/* RESUMO */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-[#1A1A1A] border border-[#262626] rounded-xl p-4">
-          Entradas
-          <div className="text-green-400 text-xl font-bold">
-            R$ {formatCurrency(resumo.entradas)}
-          </div>
-        </div>
-
-        <div className="bg-[#1A1A1A] border border-[#262626] rounded-xl p-4">
-          Saídas
-          <div className="text-red-400 text-xl font-bold">
-            R$ {formatCurrency(resumo.saidas)}
-          </div>
-        </div>
-
-        <div className="bg-[#1A1A1A] border border-[#262626] rounded-xl p-4">
-          Saldo
-          <div className="text-white text-xl font-bold">
-            R$ {formatCurrency(resumo.total)}
-          </div>
-        </div>
+      <div className="grid md:grid-cols-3 gap-4 mb-6">
+        <div>Entradas: R$ {formatCurrency(resumo.entradas)}</div>
+        <div>Saídas: R$ {formatCurrency(resumo.saidas)}</div>
+        <div>Saldo: R$ {formatCurrency(resumo.total)}</div>
       </div>
 
       {/* FORM */}
-      <form
-        onSubmit={handleSubmit}
-        className="bg-[#1A1A1A] border border-[#262626] rounded-2xl p-6 space-y-4 mb-8"
-      >
+      <form onSubmit={handleSubmit} className="space-y-3 mb-8">
         <input
           value={formData.amount}
           onChange={handleAmountChange}
           placeholder="Valor"
-          className="w-full bg-[#111] border border-[#333] rounded-xl p-3 text-white outline-none"
+          className="w-full p-2 text-black"
         />
 
         <input
@@ -172,7 +188,7 @@ export default function App() {
             setFormData({ ...formData, description: e.target.value })
           }
           placeholder="Descrição"
-          className="w-full bg-[#111] border border-[#333] rounded-xl p-3 text-white outline-none"
+          className="w-full p-2 text-black"
         />
 
         <input
@@ -181,10 +197,10 @@ export default function App() {
           onChange={(e) =>
             setFormData({ ...formData, date: e.target.value })
           }
-          className="w-full bg-[#111] border border-[#333] rounded-xl p-3 text-white outline-none"
+          className="w-full p-2 text-black"
         />
 
-        <button className="w-full bg-[#00D26A] hover:bg-[#00b35a] text-black font-bold py-3 rounded-xl transition">
+        <button className="bg-green-500 px-4 py-2 rounded">
           Salvar
         </button>
       </form>
@@ -194,45 +210,29 @@ export default function App() {
         type="month"
         value={mesFiltro}
         onChange={(e) => setMesFiltro(e.target.value)}
-        className="bg-[#111] border border-[#333] rounded-xl p-3 text-white mb-6"
+        className="p-2 text-black mb-4"
       />
 
       {/* LISTA */}
-      <div className="space-y-3">
-        {listaFiltrada.map((t) => (
-          <div
-            key={t.id}
-            className="flex justify-between items-center bg-[#1A1A1A] border border-[#262626] rounded-xl p-4"
-          >
-            <div>
-              <div className="font-bold">{t.descricao}</div>
-              <div className="text-sm text-gray-400">{t.categoria}</div>
-            </div>
-
-            <div className="text-right">
-              <div
-                className={`font-bold ${
-                  t.tipo === "entrada"
-                    ? "text-green-400"
-                    : "text-red-400"
-                }`}
-              >
-                R$ {formatCurrency(t.valor)}
-              </div>
-
-              <button
-                onClick={() => remover(t.id)}
-                className="text-red-400 text-sm"
-              >
-                excluir
-              </button>
-            </div>
+      {listaFiltrada.map((t) => (
+        <div key={t.id} className="flex justify-between mb-2 border-b pb-2">
+          <div>
+            {t.descricao} — {t.categoria}
           </div>
-        ))}
-      </div>
+          <div>
+            R$ {formatCurrency(t.valor)}
+            <button
+              onClick={() => remover(t.id)}
+              className="ml-3 text-red-400"
+            >
+              excluir
+            </button>
+          </div>
+        </div>
+      ))}
 
       {/* GRÁFICO */}
-      <div className="max-w-xs mx-auto mt-10">
+      <div className="max-w-xs mt-10">
         <Doughnut data={dadosGrafico} />
       </div>
     </div>
