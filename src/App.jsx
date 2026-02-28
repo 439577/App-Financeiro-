@@ -4,55 +4,31 @@ import {
   Chart as ChartJS,
   ArcElement,
   Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title
+  Legend
 } from "chart.js";
-
 import { supabase } from "./supabaseClient";
 
-import {
-  Wallet,
-  ArrowUp,
-  ArrowDown,
-  TrendingUp,
-  Plus,
-  Save,
-  History,
-  Briefcase,
-  ShoppingCart,
-  Film,
-  Fuel,
-  Trash2,
-  Home,
-  Zap,
-  Calendar as CalendarIcon,
-  Smartphone,
-  Wifi,
-  CreditCard
-} from "lucide-react";
+ChartJS.register(ArcElement, Tooltip, Legend);
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
-
-const CATEGORIES = {
-  'Salário': { icon: Briefcase },
-  'Investimentos': { icon: TrendingUp },
-  'Aluguel': { icon: Home },
-  'Mercado': { icon: ShoppingCart },
-  'Lazer': { icon: Film },
-  'Transporte': { icon: Fuel },
-  'Luz': { icon: Zap },
-  'Água': { icon: Zap },
-  'Internet Móvel': { icon: Smartphone },
-  'Internet': { icon: Wifi },
-  'Cartão de Crédito': { icon: CreditCard },
-  'Outros': { icon: Wallet }
-};
+const CATEGORIES = [
+  "Salário",
+  "Investimentos",
+  "Aluguel",
+  "Mercado",
+  "Lazer",
+  "Transporte",
+  "Luz",
+  "Água",
+  "Internet Móvel",
+  "Internet",
+  "Cartão de Crédito",
+  "Outros"
+];
 
 const formatCurrency = (v) =>
-  new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(v);
+  new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+  }).format(v);
 
 export default function App() {
   const [transacoes, setTransacoes] = useState([]);
@@ -63,7 +39,7 @@ export default function App() {
     description: "",
     date: new Date().toISOString().split("T")[0],
     type: "entrada",
-    category: "Salário"
+    category: "Salário",
   });
 
   useEffect(() => {
@@ -77,14 +53,13 @@ export default function App() {
       .order("created_at", { ascending: false });
 
     if (!error) setTransacoes(data);
-    else console.log(error);
   }
 
   const handleAmountChange = (e) => {
     let v = e.target.value.replace(/\D/g, "");
     v = (Number(v) / 100).toLocaleString("pt-BR", {
       style: "currency",
-      currency: "BRL"
+      currency: "BRL",
     });
     setFormData({ ...formData, amount: v });
   };
@@ -94,7 +69,10 @@ export default function App() {
     if (!formData.amount) return;
 
     const valor = Number(
-      formData.amount.replace("R$", "").replace(/\./g, "").replace(",", ".")
+      formData.amount
+        .replace("R$", "")
+        .replace(/\./g, "")
+        .replace(",", ".")
     );
 
     const nova = {
@@ -102,18 +80,17 @@ export default function App() {
       valor,
       categoria: formData.category,
       descricao: formData.description || "Sem descrição",
-      data: formData.date
+      data: formData.date,
     };
 
     const { error } = await supabase.from("transacoes").insert([nova]);
 
-    if (error) {
+    if (!error) {
+      setFormData({ ...formData, amount: "", description: "" });
+      carregarTransacoes();
+    } else {
       alert("Erro ao salvar");
-      return;
     }
-
-    setFormData({ ...formData, amount: "", description: "" });
-    carregarTransacoes();
   }
 
   async function remover(id) {
@@ -149,25 +126,25 @@ export default function App() {
   );
 
   const dadosGrafico = {
-    labels: Object.keys(CATEGORIES),
+    labels: CATEGORIES,
     datasets: [
       {
-        data: Object.keys(CATEGORIES).map((cat) =>
+        data: CATEGORIES.map((cat) =>
           listaFiltrada
             .filter((t) => t.categoria === cat && t.tipo === "saida")
             .reduce((a, c) => a + Number(c.valor), 0)
         ),
-        borderWidth: 0
-      }
-    ]
+        borderWidth: 0,
+      },
+    ],
   };
 
   return (
-    <div className="min-h-screen bg-[#0D0D0D] text-white p-6">
-      <h1 className="text-3xl font-bold mb-6">Finanças Pro</h1>
+    <div className="min-h-screen bg-[#0D0D0D] text-white p-4 md:p-6">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6">Finanças Pro</h1>
 
       {/* RESUMO */}
-      <div className="grid md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6 text-sm md:text-base">
         <div>Entradas: R$ {formatCurrency(resumo.entradas)}</div>
         <div>Saídas: R$ {formatCurrency(resumo.saidas)}</div>
         <div>Saldo: R$ {formatCurrency(resumo.total)}</div>
@@ -179,7 +156,7 @@ export default function App() {
           value={formData.amount}
           onChange={handleAmountChange}
           placeholder="Valor"
-          className="w-full p-2 text-black"
+          className="w-full p-3 rounded text-black"
         />
 
         <input
@@ -188,7 +165,7 @@ export default function App() {
             setFormData({ ...formData, description: e.target.value })
           }
           placeholder="Descrição"
-          className="w-full p-2 text-black"
+          className="w-full p-3 rounded text-black"
         />
 
         <input
@@ -197,10 +174,22 @@ export default function App() {
           onChange={(e) =>
             setFormData({ ...formData, date: e.target.value })
           }
-          className="w-full p-2 text-black"
+          className="w-full p-3 rounded text-black"
         />
 
-        <button className="bg-green-500 px-4 py-2 rounded">
+        <select
+          value={formData.category}
+          onChange={(e) =>
+            setFormData({ ...formData, category: e.target.value })
+          }
+          className="w-full p-3 rounded text-black text-sm"
+        >
+          {CATEGORIES.map((c) => (
+            <option key={c}>{c}</option>
+          ))}
+        </select>
+
+        <button className="w-full bg-green-500 py-3 rounded font-semibold">
           Salvar
         </button>
       </form>
@@ -210,29 +199,34 @@ export default function App() {
         type="month"
         value={mesFiltro}
         onChange={(e) => setMesFiltro(e.target.value)}
-        className="p-2 text-black mb-4"
+        className="p-2 rounded text-black mb-6 w-full md:w-auto"
       />
 
       {/* LISTA */}
-      {listaFiltrada.map((t) => (
-        <div key={t.id} className="flex justify-between mb-2 border-b pb-2">
-          <div>
-            {t.descricao} — {t.categoria}
+      <div className="space-y-2">
+        {listaFiltrada.map((t) => (
+          <div
+            key={t.id}
+            className="flex justify-between items-center border-b border-gray-700 pb-2 text-sm md:text-base"
+          >
+            <div>
+              {t.descricao} — {t.categoria}
+            </div>
+            <div className="flex items-center gap-3">
+              R$ {formatCurrency(t.valor)}
+              <button
+                onClick={() => remover(t.id)}
+                className="text-red-400 text-xs"
+              >
+                excluir
+              </button>
+            </div>
           </div>
-          <div>
-            R$ {formatCurrency(t.valor)}
-            <button
-              onClick={() => remover(t.id)}
-              className="ml-3 text-red-400"
-            >
-              excluir
-            </button>
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
 
       {/* GRÁFICO */}
-      <div className="max-w-xs mt-10">
+      <div className="w-full max-w-[220px] mx-auto mt-10">
         <Doughnut data={dadosGrafico} />
       </div>
     </div>
