@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { Doughnut } from "react-chartjs-2";
 import {
@@ -6,24 +7,10 @@ import {
   Tooltip,
   Legend
 } from "chart.js";
+
 import { supabase } from "./supabaseClient";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
-
-const CATEGORIES = [
-  "Salário",
-  "Investimentos",
-  "Aluguel",
-  "Mercado",
-  "Lazer",
-  "Transporte",
-  "Luz",
-  "Água",
-  "Internet Móvel",
-  "Internet",
-  "Cartão de Crédito",
-  "Outros"
-];
 
 const formatCurrency = (v) =>
   new Intl.NumberFormat("pt-BR", {
@@ -53,6 +40,7 @@ export default function App() {
       .order("created_at", { ascending: false });
 
     if (!error) setTransacoes(data);
+    else console.log(error);
   }
 
   const handleAmountChange = (e) => {
@@ -69,10 +57,7 @@ export default function App() {
     if (!formData.amount) return;
 
     const valor = Number(
-      formData.amount
-        .replace("R$", "")
-        .replace(/\./g, "")
-        .replace(",", ".")
+      formData.amount.replace("R$", "").replace(/\./g, "").replace(",", ".")
     );
 
     const nova = {
@@ -85,12 +70,13 @@ export default function App() {
 
     const { error } = await supabase.from("transacoes").insert([nova]);
 
-    if (!error) {
-      setFormData({ ...formData, amount: "", description: "" });
-      carregarTransacoes();
-    } else {
+    if (error) {
       alert("Erro ao salvar");
+      return;
     }
+
+    setFormData({ ...formData, amount: "", description: "" });
+    carregarTransacoes();
   }
 
   async function remover(id) {
@@ -126,37 +112,58 @@ export default function App() {
   );
 
   const dadosGrafico = {
-    labels: CATEGORIES,
+    labels: ["Saídas"],
     datasets: [
       {
-        data: CATEGORIES.map((cat) =>
-          listaFiltrada
-            .filter((t) => t.categoria === cat && t.tipo === "saida")
-            .reduce((a, c) => a + Number(c.valor), 0)
-        ),
+        data: [resumo.saidas],
+        backgroundColor: ["#00D26A"],
         borderWidth: 0,
       },
     ],
   };
 
   return (
-    <div className="min-h-screen bg-[#0D0D0D] text-white p-4 md:p-6">
-      <h1 className="text-2xl md:text-3xl font-bold mb-6">Finanças Pro</h1>
+    <div className="min-h-screen bg-[#0D0D0D] text-white p-4 md:p-8">
+      
+      {/* HEADER */}
+      <h1 className="text-3xl md:text-4xl font-bold mb-6">
+        💰 Finanças Pro
+      </h1>
 
       {/* RESUMO */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6 text-sm md:text-base">
-        <div>Entradas: R$ {formatCurrency(resumo.entradas)}</div>
-        <div>Saídas: R$ {formatCurrency(resumo.saidas)}</div>
-        <div>Saldo: R$ {formatCurrency(resumo.total)}</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="bg-[#1A1A1A] border border-[#262626] rounded-xl p-4">
+          Entradas
+          <div className="text-green-400 text-xl font-bold">
+            R$ {formatCurrency(resumo.entradas)}
+          </div>
+        </div>
+
+        <div className="bg-[#1A1A1A] border border-[#262626] rounded-xl p-4">
+          Saídas
+          <div className="text-red-400 text-xl font-bold">
+            R$ {formatCurrency(resumo.saidas)}
+          </div>
+        </div>
+
+        <div className="bg-[#1A1A1A] border border-[#262626] rounded-xl p-4">
+          Saldo
+          <div className="text-white text-xl font-bold">
+            R$ {formatCurrency(resumo.total)}
+          </div>
+        </div>
       </div>
 
       {/* FORM */}
-      <form onSubmit={handleSubmit} className="space-y-3 mb-8">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-[#1A1A1A] border border-[#262626] rounded-2xl p-6 space-y-4 mb-8"
+      >
         <input
           value={formData.amount}
           onChange={handleAmountChange}
           placeholder="Valor"
-          className="w-full p-3 rounded text-black"
+          className="w-full bg-[#111] border border-[#333] rounded-xl p-3 text-white outline-none"
         />
 
         <input
@@ -165,7 +172,7 @@ export default function App() {
             setFormData({ ...formData, description: e.target.value })
           }
           placeholder="Descrição"
-          className="w-full p-3 rounded text-black"
+          className="w-full bg-[#111] border border-[#333] rounded-xl p-3 text-white outline-none"
         />
 
         <input
@@ -174,22 +181,10 @@ export default function App() {
           onChange={(e) =>
             setFormData({ ...formData, date: e.target.value })
           }
-          className="w-full p-3 rounded text-black"
+          className="w-full bg-[#111] border border-[#333] rounded-xl p-3 text-white outline-none"
         />
 
-        <select
-          value={formData.category}
-          onChange={(e) =>
-            setFormData({ ...formData, category: e.target.value })
-          }
-          className="w-full p-3 rounded text-black text-sm"
-        >
-          {CATEGORIES.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
-
-        <button className="w-full bg-green-500 py-3 rounded font-semibold">
+        <button className="w-full bg-[#00D26A] hover:bg-[#00b35a] text-black font-bold py-3 rounded-xl transition">
           Salvar
         </button>
       </form>
@@ -199,24 +194,35 @@ export default function App() {
         type="month"
         value={mesFiltro}
         onChange={(e) => setMesFiltro(e.target.value)}
-        className="p-2 rounded text-black mb-6 w-full md:w-auto"
+        className="bg-[#111] border border-[#333] rounded-xl p-3 text-white mb-6"
       />
 
       {/* LISTA */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         {listaFiltrada.map((t) => (
           <div
             key={t.id}
-            className="flex justify-between items-center border-b border-gray-700 pb-2 text-sm md:text-base"
+            className="flex justify-between items-center bg-[#1A1A1A] border border-[#262626] rounded-xl p-4"
           >
             <div>
-              {t.descricao} — {t.categoria}
+              <div className="font-bold">{t.descricao}</div>
+              <div className="text-sm text-gray-400">{t.categoria}</div>
             </div>
-            <div className="flex items-center gap-3">
-              R$ {formatCurrency(t.valor)}
+
+            <div className="text-right">
+              <div
+                className={`font-bold ${
+                  t.tipo === "entrada"
+                    ? "text-green-400"
+                    : "text-red-400"
+                }`}
+              >
+                R$ {formatCurrency(t.valor)}
+              </div>
+
               <button
                 onClick={() => remover(t.id)}
-                className="text-red-400 text-xs"
+                className="text-red-400 text-sm"
               >
                 excluir
               </button>
@@ -226,7 +232,7 @@ export default function App() {
       </div>
 
       {/* GRÁFICO */}
-      <div className="w-full max-w-[220px] mx-auto mt-10">
+      <div className="max-w-xs mx-auto mt-10">
         <Doughnut data={dadosGrafico} />
       </div>
     </div>
