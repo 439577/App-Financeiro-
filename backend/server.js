@@ -62,7 +62,23 @@ app.delete("/transacoes/:id", (req, res) => {
         res.json({ msg: "Item deletado" });
     });
 });
+// --- ROTA 4: ATUALIZAR (PUT) ---
+// Para o botão de editar funcionar
+app.put("/transacoes/:id", (req, res) => {
+    const { id } = req.params;
+    const { tipo, valor, categoria, descricao, data } = req.body;
 
+    const sql = "UPDATE transacoes SET tipo = ?, valor = ?, categoria = ?, descricao = ?, data = ? WHERE id = ?";
+    
+    db.query(sql, [tipo, valor, categoria, descricao, data, id], (err, result) => {
+        if (err) {
+            console.error("❌ Erro ao atualizar:", err);
+            return res.status(500).json({ error: err.message });
+        }
+        console.log("✅ Transação atualizada:", descricao);
+        res.json({ msg: "Atualizado com sucesso" });
+    });
+});
 // --- INICIA O SERVIDOR ---
 app.listen(3001, () => {
     console.log("🚀 Servidor rodando na porta 3001");

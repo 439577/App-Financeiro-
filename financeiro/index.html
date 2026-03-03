@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Financeiro Web</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #111827; /* Cor cinza escuro do Tailwind (gray-900) */
+        overflow-x: hidden; /* Evita rolagem lateral indesejada */
+      }
+
+      /* Remove a centralização padrão do Vite */
+      body {
+        display: block !important;
+        place-items: start !important;
+        min-width: 100% !important;
+      }
+
+      /* Garante que o App ocupe tudo */
+      #root {
+        width: 100%;
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+        max-width: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
