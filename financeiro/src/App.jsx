@@ -1,15 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
+import { supabase } from './supabaseClient'; // Conexão com a Nuvem!
 import './App.css';
 
-// --- CONFIGURAÇÃO DE ACESSO (MUITO IMPORTANTE) ---
-// Troque 'localhost' pelo SEU IP se quiser usar no celular (ex: '192.168.0.15')
-// Se for usar só no PC, pode deixar '192.168.1.23'
-const IP_DO_COMPUTADOR = 'localhost'; 
-const API_URL = `http://${IP_DO_COMPUTADOR}:3001/transacoes`;
-
-// Registra os componentes dos gráficos (Pizza e Barras)
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 function App() {
@@ -31,7 +25,6 @@ function App() {
     data: new Date().toISOString().split('T')[0]
   });
 
-  // --- FUNÇÕES AUXILIARES ---
   const formatarMoedaVisual = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   
   const limparValor = (valorFormatado) => {
@@ -47,20 +40,25 @@ function App() {
     return numero.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   };
 
-  // --- BUSCA DADOS ---
+  // --- BUSCAR DADOS DO SUPABASE ---
   useEffect(() => { listarTransacoes(); }, []);
 
   const listarTransacoes = async () => {
     try {
-      const response = await fetch(API_URL);
-      const data = await response.json();
-      setTransacoes(data);
-    } catch (error) { console.error("Erro ao buscar. Verifique o IP!", error); }
+      const { data, error } = await supabase
+        .from('transacoes')
+        .select('*')
+        .order('data', { ascending: false });
+
+      if (error) throw error;
+      setTransacoes(data || []);
+    } catch (error) { 
+      console.error("Erro ao buscar:", error.message); 
+    }
   };
 
-  // --- FILTROS E CÁLCULOS ---
   const transacoesFiltradas = useMemo(() => {
-    return transacoes.filter(t => t.data.startsWith(filtroMes));
+    return transacoes.filter(t => t.data && t.data.startsWith(filtroMes));
   }, [transacoes, filtroMes]);
 
   const resumo = useMemo(() => {
@@ -69,46 +67,53 @@ function App() {
     return { entradas, saidas, saldo: entradas - saidas };
   }, [transacoesFiltradas]);
 
-  // --- AÇÕES ---
+  // --- SALVAR NO SUPABASE ---
   const salvar = async (e) => {
     e.preventDefault();
     const valorNumerico = limparValor(form.valor);
     if (!valorNumerico) return alert("Preencha o valor!");
 
+    const dadosParaSalvar = {
+      descricao: form.descricao || 'Sem descrição',
+      valor: valorNumerico,
+      tipo: form.tipo,
+      categoria: form.categoria,
+      data: form.data
+    };
+
     try {
-      const url = idEditando ? `${API_URL}/${idEditando}` : API_URL;
-      const method = idEditando ? 'PUT' : 'POST';
+      if (idEditando) {
+        const { error } = await supabase.from('transacoes').update(dadosParaSalvar).eq('id', idEditando);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('transacoes').insert([dadosParaSalvar]);
+        if (error) throw error;
+      }
 
-      const dadosParaSalvar = {
-        ...form,
-        valor: valorNumerico,
-        descricao: form.descricao || 'Sem descrição'
-      };
-
-      await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dadosParaSalvar)
-      });
-
-      setForm({ 
-        descricao: '', valor: '', tipo: 'entrada', categoria: CATEGORIAS_ENTRADA[0], 
-        data: new Date().toISOString().split('T')[0] 
-      });
+      setForm({ descricao: '', valor: '', tipo: 'entrada', categoria: CATEGORIAS_ENTRADA[0], data: new Date().toISOString().split('T')[0] });
       setIdEditando(null);
       listarTransacoes();
-    } catch (error) { console.error("Erro:", error); alert("Erro ao salvar! Verifique se o IP está correto."); }
+    } catch (error) {
+      console.error("Erro ao salvar:", error.message);
+      alert("Erro ao salvar! Verifique a conexão.");
+    }
+  };
+
+  // --- DELETAR NO SUPABASE ---
+  const deletar = async (id) => {
+    if (!confirm("Tem certeza?")) return;
+    try {
+      const { error } = await supabase.from('transacoes').delete().eq('id', id);
+      if (error) throw error;
+      listarTransacoes();
+    } catch (error) {
+      console.error("Erro ao deletar:", error.message);
+    }
   };
 
   const preencherParaEditar = (t) => {
     setIdEditando(t.id);
-    setForm({ ...t, valor: formatarMoedaVisual(t.valor), data: t.data.split('T')[0] });
-  };
-
-  const deletar = async (id) => {
-    if (!confirm("Tem certeza?")) return;
-    await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-    listarTransacoes();
+    setForm({ ...t, valor: formatarMoedaVisual(t.valor), data: t.data });
   };
 
   const handleChange = (e) => {
@@ -120,7 +125,6 @@ function App() {
     } else setForm({ ...form, [name]: value });
   };
 
-  // --- GRÁFICOS ---
   const dadosPizza = useMemo(() => {
     const saidas = transacoesFiltradas.filter(t => t.tipo === 'saida');
     const categorias = {};
@@ -138,9 +142,9 @@ function App() {
   const dadosBarras = {
     labels: ['Entradas', 'Saídas'],
     datasets: [{
-      label: 'Comparativo Mensal',
+      label: 'Total',
       data: [resumo.entradas, resumo.saidas],
-      backgroundColor: ['#22c55e', '#ef4444'], // Verde e Vermelho
+      backgroundColor: ['#22c55e', '#ef4444'], 
       borderRadius: 5,
     }]
   };
@@ -148,12 +152,11 @@ function App() {
   return (
     <div className="w-full min-h-screen bg-gray-900 text-gray-100 p-4 md:p-8 font-sans box-border overflow-x-hidden">
       
-      {/* CABEÇALHO */}
       <div className="w-full flex flex-col md:flex-row justify-between items-center mb-8 gap-4 border-b border-gray-800 pb-6">
         <div className="flex items-center gap-3">
-          <span className="text-4xl">📊</span>
-          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent uppercase">
-            Financeiro Wi-Fi
+          <span className="text-4xl">🚀</span>
+          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-green-400 to-purple-500 bg-clip-text text-transparent uppercase">
+            Financeiro Online
           </h1>
         </div>
         
@@ -164,7 +167,6 @@ function App() {
         </div>
       </div>
 
-      {/* CARDS RESUMO */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 w-full">
         <div className="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 flex flex-col items-center">
           <span className="text-gray-400 text-sm mb-2 uppercase tracking-wider">Entradas</span>
@@ -185,7 +187,6 @@ function App() {
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 w-full">
         
-        {/* COLUNA ESQUERDA: FORMULÁRIO E GRÁFICOS */}
         <div className="xl:col-span-4 space-y-6">
           <div className="bg-gray-800 p-5 rounded-2xl shadow-lg border border-gray-700">
             <h3 className="text-lg font-semibold mb-5 text-white flex items-center gap-2 border-b border-gray-700 pb-2">
@@ -233,9 +234,7 @@ function App() {
             </form>
           </div>
 
-          {/* GRÁFICOS */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-4">
-            {/* Gráfico 1: Barras (Entradas vs Saídas) */}
             <div className="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 flex flex-col items-center">
                <p className="text-xs text-gray-400 mb-4 uppercase tracking-widest font-bold">Balanço do Mês</p>
                <div className="w-full h-48">
@@ -243,7 +242,6 @@ function App() {
                </div>
             </div>
 
-            {/* Gráfico 2: Pizza (Categorias) */}
             {transacoesFiltradas.some(t => t.tipo === 'saida') && (
               <div className="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 flex flex-col items-center">
                   <p className="text-xs text-gray-400 mb-4 uppercase tracking-widest font-bold">Onde estou gastando?</p>
@@ -255,10 +253,9 @@ function App() {
           </div>
         </div>
 
-        {/* COLUNA DIREITA: TABELA */}
         <div className="xl:col-span-8 bg-gray-800 rounded-2xl shadow-lg border border-gray-700 flex flex-col h-fit">
            <div className="p-4 border-b border-gray-700 bg-gray-800/50 flex justify-between items-center rounded-t-2xl">
-              <h3 className="font-bold text-gray-300">📜 Lançamentos</h3>
+              <h3 className="font-bold text-gray-300">📜 Lançamentos (Nuvem)</h3>
               <span className="text-xs bg-gray-900 px-2 py-1 rounded text-gray-500">{transacoesFiltradas.length} itens</span>
            </div>
            <div className="overflow-x-auto w-full">
@@ -269,7 +266,7 @@ function App() {
               <tbody className="divide-y divide-gray-700">
                 {transacoesFiltradas.length > 0 ? transacoesFiltradas.map((t) => (
                   <tr key={t.id} className="hover:bg-gray-700/30 transition-colors">
-                    <td className="p-4 text-gray-400 text-sm whitespace-nowrap">{new Date(t.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
+                    <td className="p-4 text-gray-400 text-sm whitespace-nowrap">{t.data ? new Date(t.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '-'}</td>
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                           <div className={`w-1 h-8 rounded-full ${t.tipo === 'entrada' ? 'bg-green-500' : 'bg-red-500'}`}></div>
@@ -284,7 +281,7 @@ function App() {
                       </div>
                     </td>
                   </tr>
-                )) : <tr><td colSpan="4" className="p-16 text-center text-gray-600">Nenhum lançamento.</td></tr>}
+                )) : <tr><td colSpan="4" className="p-16 text-center text-gray-600">Nenhum lançamento encontrado.</td></tr>}
               </tbody>
             </table>
           </div>
