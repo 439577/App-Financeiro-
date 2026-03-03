@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
-import { supabase } from './supabaseClient'; // Conexão com a Nuvem!
+import { supabase } from './supabaseClient'; 
 import './App.css';
 
+// Registra os componentes dos gráficos
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 function App() {
@@ -25,8 +26,9 @@ function App() {
     data: new Date().toISOString().split('T')[0]
   });
 
+  // --- FUNÇÕES AUXILIARES ---
   const formatarMoedaVisual = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  
+
   const limparValor = (valorFormatado) => {
     if (typeof valorFormatado === 'number') return valorFormatado;
     if (!valorFormatado) return 0;
@@ -57,6 +59,7 @@ function App() {
     }
   };
 
+  // --- FILTROS E CÁLCULOS ---
   const transacoesFiltradas = useMemo(() => {
     return transacoes.filter(t => t.data && t.data.startsWith(filtroMes));
   }, [transacoes, filtroMes]);
@@ -125,6 +128,7 @@ function App() {
     } else setForm({ ...form, [name]: value });
   };
 
+  // --- GRÁFICOS ---
   const dadosPizza = useMemo(() => {
     const saidas = transacoesFiltradas.filter(t => t.tipo === 'saida');
     const categorias = {};
